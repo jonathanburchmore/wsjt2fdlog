@@ -141,8 +141,7 @@ def fdlog_from_wsjt(wsjt_message):
     fdlog_message.append("q")
     fdlog_message.append("JCB-PBP")
     fdlog_message.append("-1")
-    fdlog_message.append(
-        fdlog_dtstamp_from_wsjt_datetime(wsjt_message["dt_off"]))
+    fdlog_message.append(fdlog_dtstamp_from_wsjt_datetime(wsjt_message["dt_off"]))
     fdlog_message.append(fdlog_band(wsjt_message["txfreq"]))
     fdlog_message.append(wsjt_message["dxcall"])
     fdlog_message.append(wsjt_message["exh_rcvd"])
@@ -171,11 +170,9 @@ def listen_and_forward():
             continue
 
         fdlog_message = fdlog_from_wsjt(wsjt_message)
-        fdlog_socket.sendto(f"{fdlog_cauth( fdlog_message )}\n{fdlog_message}\n".encode(
-            "utf-8"), ("127.0.0.1", 7373))
+        fdlog_socket.sendto(f"{fdlog_cauth( fdlog_message )}\n{fdlog_message}\n".encode("utf-8"), ("127.0.0.1", 7373))
 
-        print(
-            f"{datetime.datetime.now().isoformat()} {wsjt_message[ 'dxcall' ]} {wsjt_message[ 'exh_rcvd' ]}")
+        print(f"{datetime.datetime.now().isoformat()} {wsjt_message[ 'dxcall' ]} {wsjt_message[ 'exh_rcvd' ]}")
 
 
 if __name__ == "__main__":
