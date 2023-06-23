@@ -153,7 +153,7 @@ def fdlog_from_wsjt(wsjt_message):
 
 
 def fdlog_cauth(fdlog_message):
-    return hashlib.md5(("tst" + "2004070511111akb" + fdlog_message + "\n").encode("utf-8")).hexdigest()
+    return hashlib.md5(("tst" + "2004070511111akb" + "FD" + fdlog_message + "\n").encode("utf-8")).hexdigest()
 
 
 def listen_and_forward():
@@ -161,7 +161,7 @@ def listen_and_forward():
     wsjt_socket.bind(("", 2237))
 
     fdlog_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    fdlog_socket.bind(("", 7374))
+    fdlog_socket.bind(("", 7375))
 
     while True:
         packet, source_address = wsjt_socket.recvfrom(8192)
