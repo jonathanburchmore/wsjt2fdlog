@@ -1,9 +1,17 @@
 #!env python3
 
+#
+# wsjt2fdlog
+#
+# (c) 2023, Jonathan Burchmore KN6LFB
+# kn6lfb@arrl.net
+#
+
 import struct
 import socket
 import hashlib
 import datetime
+import argparse
 
 
 def parse_wsjt_qint8(pos, packet):
@@ -136,32 +144,36 @@ def fdlog_band(txfreq):
     return "off"
 
 
-def fdlog_from_wsjt(wsjt_message):
+def fdlog_from_wsjt(args, wsjt_message):
     fdlog_message = []
     fdlog_message.append("q")
-    fdlog_message.append("JCB-PBP")
+    fdlog_message.append(args.host)
     fdlog_message.append("-1")
-    fdlog_message.append(fdlog_dtstamp_from_wsjt_datetime(wsjt_message["dt_off"]))
+    fdlog_message.append(
+        fdlog_dtstamp_from_wsjt_datetime(wsjt_message["dt_off"]))
     fdlog_message.append(fdlog_band(wsjt_message["txfreq"]))
     fdlog_message.append(wsjt_message["dxcall"].lower())
     fdlog_message.append(wsjt_message["exh_rcvd"].lower())
     fdlog_message.append(wsjt_message["txpower"])
-    fdlog_message.append("jcb")
-    fdlog_message.append("jcb")
+    fdlog_message.append(args.op)
+    fdlog_message.append(args.logger)
 
     return "|".join(fdlog_message)
 
 
-def fdlog_cauth(fdlog_message):
-    return hashlib.md5(("tst" + "2004070511111akb" + "FD" + fdlog_message + "\n").encode("utf-8")).hexdigest()
+def fdlog_cauth(args, fdlog_message):
+    return hashlib.md5((args.authkey + "2004070511111akb" + args.contest + fdlog_message + "\n").encode("utf-8")).hexdigest()
 
 
-def listen_and_forward():
+def listen_and_forward(args):
+    print(
+        f"Forwarding WSJT-X packets on port {args.wsjt_port} to FDLog at {args.fdlog_host}:{args.fdlog_port}")
+    print(f"Host: {args.host} Operator: {args.op} Logger: {args.logger}")
+
     wsjt_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    wsjt_socket.bind(("", 2237))
+    wsjt_socket.bind(("", args.wsjt_port))
 
     fdlog_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    fdlog_socket.bind(("", 7375))
 
     while True:
         packet, source_address = wsjt_socket.recvfrom(8192)
@@ -169,11 +181,38 @@ def listen_and_forward():
         if wsjt_message == None:
             continue
 
-        fdlog_message = fdlog_from_wsjt(wsjt_message)
-        fdlog_socket.sendto(f"{fdlog_cauth(fdlog_message)}\n{fdlog_message}\n".encode("utf-8"), ("127.0.0.1", 7373))
+        fdlog_message = fdlog_from_wsjt(args, wsjt_message)
+        fdlog_socket.sendto(f"{fdlog_cauth(args, fdlog_message)}\n{fdlog_message}\n".encode(
+            "utf-8"), (args.fdlog_host, args.fdlog_port))
 
-        print(f"{datetime.datetime.now().isoformat()} {wsjt_message['dxcall']} {wsjt_message['exh_rcvd']}")
+        print(
+            f"{datetime.datetime.now().isoformat()} {wsjt_message['dxcall']} {wsjt_message['exh_rcvd']}")
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        prog="wsjt2fdlog", description="Forward WSJT-X QSO Logged Packets to FDLog")
+
+    parser.add_argument("--wsjt-port", dest="wsjt_port", type=int,
+                        default=2237, help="WSJT-X UDP Port (default 2237)")
+    parser.add_argument("--fdlog-host", dest="fdlog_host",
+                        default="127.0.0.1", help="FDLog Hostname/IP (default 127.0.0.1)")
+    parser.add_argument("--fdlog-port", dest="fdlog_port", type=int,
+                        default=7373, help="FDLog UDP Port (default 7373)")
+    parser.add_argument("--authkey", dest="authkey",
+                        default="tst", help="FDLog authkey (default 'tst')")
+    parser.add_argument("--contest", dest="contest",
+                        default="FD", help="Contest Identifier (default 'fd')")
+    parser.add_argument("--host", dest="host", default="JCB-PBP",
+                        help="FDLog QSO Host (default 'JCB-PBP')")
+    parser.add_argument("--op", dest="op", default="jcb",
+                        help="FDLog QSO Operator (default 'jcb')")
+    parser.add_argument("--logger", dest="logger", default="jcb",
+                        help="FDLog QSO Logger (default 'jcb')")
+
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    listen_and_forward()
+    args = parse_arguments()
+    listen_and_forward(args)
